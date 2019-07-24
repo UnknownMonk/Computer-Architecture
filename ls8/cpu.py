@@ -7,7 +7,7 @@ class CPU:
 
     def __init__(self):
         """Construct a new CPU."""
-        self.ram = [00000000] * 256  # 256 max memory
+        self.ram = [0] * 255  # 256 max memory
         self.reg = [0] * 8  # 8 gen purpose registers
         self.pc = 0
         self.branchtable = {}
@@ -15,8 +15,13 @@ class CPU:
         self.branchtable[0b10000010] = self.op_ldi
         self.branchtable[0b01000111] = self.op_prn
         self.branchtable[0b10100010] = self.op_mul
+        self.branchtable[0b01000101] = self.op_push
+        self.branchtable[0b01000110] = self.op_pop
         self.running = True
-        self.IR = 0
+        # self.sp = 7
+        # self.ram[self.sp] = 244
+        self.reg[7] = 0xF4
+        self.sp = self.reg[7]
 
     def ram_read(self, mar):
         print(self.ram[mar])
@@ -38,16 +43,16 @@ class CPU:
             # 0b00000000,
             # 0b00000001, # HLT
         ]
-        f = open(file, 'r')
-        f1 = f.readlines()
-        for x in f1:
-            line = x.split('#', 1)[0]
-            if line.strip() == '':
-                continue
-            program.append(int(line, 2))
-        for instruction in program:
-            self.ram[address] = instruction
-            address += 1
+        with open(file, 'r') as data:
+            for x in data:
+                line = x.split('#', 1)[0]
+                if line.strip() == '':
+                    continue
+                program.append(int(line, 2))
+
+            for instruction in program:
+                self.ram[address] = instruction
+                address += 1
 
     def alu(self, op, reg_a, reg_b):
         """ALU operations."""
@@ -86,27 +91,43 @@ class CPU:
         sys.exit(1)
 
     def op_ldi(self):
-        reg_add = self.ram[self.IR + 1]
-        reg_val = self.ram[self.IR + 2]
+        reg_add = self.ram[self.pc + 1]
+        reg_val = self.ram[self.pc + 2]
         self.ram_write(reg_add, reg_val)
-        self.IR += 3
+        self.pc += 3
 
     def op_prn(self):
-        reg_add = self.ram[self.IR + 1]
+        reg_add = self.ram[self.pc + 1]
         self.ram_read(reg_add)
-        self.IR += 2
+        self.pc += 2
 
     def op_mul(self):
-        reg_add_a = self.ram[self.IR + 1]
-        reg_add_b = self.ram[self.IR + 2]
+        reg_add_a = self.ram[self.pc + 1]
+        reg_add_b = self.ram[self.pc + 2]
         self.alu("MUL", reg_add_a, reg_add_b)
-        self.IR += 3
+        self.pc += 3
+
+    def op_push(self):
+        self.sp -= 1
+
+        reg_num = self.ram[self.pc + 1]
+        value = self.ram[reg_num]
+        self.ram[self.sp] = value
+
+        self.pc += 2
+
+    def op_pop(self):
+        reg_num = self.ram[self.pc + 1]
+        self.ram_write(reg_num, self.ram[self.sp])
+        self.sp += 1
+        self.pc += 2
+        pass
 
     def run(self):
         """Run the CPU."""
 
         while self.running:
-            command = self.ram[self.IR]
+            command = self.ram[self.pc]
             if command in self.branchtable:
                 self.branchtable[command]()
             else:
