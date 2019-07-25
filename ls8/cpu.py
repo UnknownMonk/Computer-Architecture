@@ -17,6 +17,9 @@ class CPU:
         self.branchtable[0b10100010] = self.op_mul
         self.branchtable[0b01000101] = self.op_push
         self.branchtable[0b01000110] = self.op_pop
+        self.branchtable[0b01010000] = self.op_call
+        self.branchtable[0b00010001] = self.op_ret
+        self.branchtable[0b10100000] = self.op_add
         self.running = True
         # self.sp = 7
         # self.ram[self.sp] = 244
@@ -107,6 +110,12 @@ class CPU:
         self.alu("MUL", reg_add_a, reg_add_b)
         self.pc += 3
 
+    def op_add(self):
+        reg_add_a = self.ram[self.pc + 1]
+        reg_add_b = self.ram[self.pc + 2]
+        self.alu("ADD", reg_add_a, reg_add_b)
+        self.pc += 3
+
     def op_push(self):
         self.sp -= 1
 
@@ -121,7 +130,19 @@ class CPU:
         self.ram_write(reg_num, self.ram[self.sp])
         self.sp += 1
         self.pc += 2
-        pass
+
+    def op_call(self):
+        return_addr = self.pc + 2
+        self.sp -= 1
+        self.ram[self.sp] = return_addr
+        reg_num = self.ram[self.pc + 1]
+        subroutine_addr = self.ram[reg_num]
+        self.pc = subroutine_addr
+
+    def op_ret(self):
+        return_addr = self.ram[self.sp]
+        self.sp += 1
+        self.pc = return_addr
 
     def run(self):
         """Run the CPU."""
